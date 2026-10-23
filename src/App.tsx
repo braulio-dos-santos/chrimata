@@ -21,7 +21,7 @@ import { Transaction } from './types/finance';
 
 function MainApp() {
   const { isAuthenticated } = useAuth();
-  const [currentTab, setCurrentTab] = useState<string>('dashboard');
+  const [currentTab, setCurrentTab] = useState<string>('landing');
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
 

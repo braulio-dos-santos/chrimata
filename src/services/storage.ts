@@ -243,11 +243,16 @@ export function initStorage(): void {
     }
   }
 
+  // Clear legacy storage keys
+  localStorage.removeItem('chrimata_current_user_v1');
+  localStorage.removeItem('chrimata_current_user');
+  localStorage.removeItem('chrimata_user');
+
   const currentUserRaw = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
   if (currentUserRaw) {
     try {
       const cur: User = JSON.parse(currentUserRaw);
-      if (cur.id === 'user_student' || cur.id === 'user_worker') {
+      if (!cur || !cur.id || cur.id === 'user_student' || cur.id === 'user_worker') {
         localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
       }
     } catch {

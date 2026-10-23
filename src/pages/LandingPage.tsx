@@ -250,13 +250,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
             Pronto para transformar a sua relação com o dinheiro?
           </h2>
           <p className="text-sm text-emerald-100 max-w-xl mx-auto mb-8">
-            Experimente o Chrímata agora mesmo. Não requer cartão de crédito e pode testar com dados fictícios com um único clique.
+            Experimente o Chrímata agora mesmo. Crie a sua conta em segundos e comece a organizar as suas finanças pessoais com total privacidade e segurança.
           </p>
           <button
             onClick={onGetStarted}
             className="px-8 py-3.5 text-sm font-bold text-emerald-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl shadow-lg transition-all cursor-pointer inline-flex items-center gap-2"
           >
-            <span>Aceder ao Dashboard</span>
+            <span>Começar Agora</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </div>

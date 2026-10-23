@@ -77,7 +77,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = () => {
     setUser(null);
+    storageService.setCurrentUser(null);
     localStorage.removeItem('chrimata_current_user_v1');
+    localStorage.removeItem('chrimata_current_user_v2');
+    localStorage.removeItem('chrimata_current_user');
   };
 
   const switchDemoUser = (userId: string) => {
@@ -98,8 +101,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const resetDemoData = () => {
     storageService.resetToDemoData();
-    const current = storageService.getCurrentUser();
-    setUser(current);
+    setUser(null);
   };
 
   if (loading) {
