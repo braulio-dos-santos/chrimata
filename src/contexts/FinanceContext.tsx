@@ -201,14 +201,12 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...data,
       userId: user.id,
     });
-    storageService.addTransaction({ ...data, userId: user.id });
     await loadData();
     return created;
   };
 
   const updateTransaction = async (tx: Transaction) => {
     await firestoreService.updateTransaction(tx);
-    storageService.updateTransaction(tx);
     await loadData();
   };
 
@@ -217,7 +215,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (tx) {
       await firestoreService.deleteTransaction(tx);
     }
-    storageService.deleteTransaction(id);
     await loadData();
   };
 
@@ -229,18 +226,11 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       amountLimit,
       monthYear: selectedMonthYear,
     });
-    storageService.saveBudget({
-      userId: user.id,
-      categoryId,
-      amountLimit,
-      monthYear: selectedMonthYear,
-    });
     await loadData();
   };
 
   const deleteBudget = async (id: string) => {
     await firestoreService.deleteBudget(id);
-    storageService.deleteBudget(id);
     await loadData();
   };
 
@@ -251,7 +241,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       isSystem: false,
     };
     await firestoreService.addCategory(newCat);
-    storageService.addCategory(newCat);
     await loadData();
   };
 
@@ -261,20 +250,17 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...data,
       userId: user.id,
     });
-    storageService.createAccount({ ...data, userId: user.id });
     await loadData();
     return acc;
   };
 
   const updateAccount = async (acc: Account) => {
     await firestoreService.updateAccount(acc);
-    storageService.updateAccount(acc);
     await loadData();
   };
 
   const deleteAccount = async (id: string) => {
     await firestoreService.deleteAccount(id);
-    storageService.deleteAccount(id);
     await loadData();
   };
 
@@ -294,7 +280,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       date,
       description
     );
-    storageService.transferBetweenAccounts(user.id, fromAccountId, toAccountId, amount, date, description);
     await loadData();
     return tx;
   };
@@ -305,21 +290,18 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       ...goalData,
       userId: user.id,
     });
-    storageService.saveGoal({ ...goalData, userId: user.id });
     await loadData();
     return saved;
   };
 
   const deleteGoal = async (id: string) => {
     await firestoreService.deleteGoal(id);
-    storageService.deleteGoal(id);
     await loadData();
   };
 
   const contributeToGoal = async (goalId: string, amount: number, sourceAccountId?: string, note?: string) => {
     if (!user) throw new Error('Utilizador não autenticado');
     await firestoreService.contributeToGoal(user.id, goalId, amount, sourceAccountId, note);
-    storageService.contributeToGoal(user.id, goalId, amount, sourceAccountId, note);
     await loadData();
   };
 

@@ -361,8 +361,13 @@ export const storageService = {
         ...account,
         isSavings: account.type === 'savings' || account.isSavings,
       };
-      localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
+    } else {
+      accounts.push({
+        ...account,
+        isSavings: account.type === 'savings' || account.isSavings,
+      });
     }
+    localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
   },
 
   deleteAccount(id: string): void {
@@ -488,8 +493,10 @@ export const storageService = {
     const index = transactions.findIndex(t => t.id === tx.id);
     if (index >= 0) {
       transactions[index] = tx;
-      localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
+    } else {
+      transactions.unshift(tx);
     }
+    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
   },
 
   deleteTransaction(id: string): void {
