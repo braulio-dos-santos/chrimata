@@ -80,7 +80,68 @@ export const firestoreService = {
     }
   },
 
-  // Contas
+  // Operações de Admin Global
+  async getAllUsers(): Promise<User[]> {
+    if (!auth.currentUser) return storageService.getUsers();
+    const path = 'users';
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      if (snap.empty) return storageService.getUsers();
+      return snap.docs.map(d => d.data() as User);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, path);
+      return storageService.getUsers();
+    }
+  },
+
+  async deleteUser(userId: string): Promise<void> {
+    if (!auth.currentUser) return;
+    const path = `users/${userId}`;
+    try {
+      await deleteDoc(doc(db, 'users', userId));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, path);
+    }
+  },
+
+  async getAllAccountsGlobal(): Promise<Account[]> {
+    if (!auth.currentUser) return storageService.getAccounts();
+    const path = 'accounts';
+    try {
+      const snap = await getDocs(collection(db, 'accounts'));
+      return snap.docs.map(d => d.data() as Account);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, path);
+      return storageService.getAccounts();
+    }
+  },
+
+  async getAllTransactionsGlobal(): Promise<Transaction[]> {
+    if (!auth.currentUser) return storageService.getTransactions();
+    const path = 'transactions';
+    try {
+      const snap = await getDocs(collection(db, 'transactions'));
+      const list = snap.docs.map(d => d.data() as Transaction);
+      return list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, path);
+      return storageService.getTransactions();
+    }
+  },
+
+  async getAllGoalsGlobal(): Promise<FinancialGoal[]> {
+    if (!auth.currentUser) return storageService.getGoals();
+    const path = 'goals';
+    try {
+      const snap = await getDocs(collection(db, 'goals'));
+      return snap.docs.map(d => d.data() as FinancialGoal);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.LIST, path);
+      return storageService.getGoals();
+    }
+  },
+
+  // Contas do Utilizador
   async getAccounts(userId: string): Promise<Account[]> {
     if (!auth.currentUser) {
       return storageService.getAccounts(userId);
