@@ -4,7 +4,7 @@ import { useFinance } from '../contexts/FinanceContext';
 import { firestoreService } from '../services/firestoreService';
 import { storageService } from '../services/storage';
 import { formatKz, formatDatePt } from '../utils/currency';
-import { User, Transaction, Account, FinancialGoal, Category } from '../types/finance';
+import { User, Transaction, Account, FinancialGoal } from '../types/finance';
 import { downloadFinancialPDF } from '../services/pdfReportService';
 import { 
   ShieldCheck, 
@@ -17,21 +17,23 @@ import {
   Wallet, 
   Target, 
   Trash2, 
-  UserCheck, 
-  UserX, 
   Search, 
   FileText, 
   RefreshCw,
   PieChart,
-  Settings,
-  AlertTriangle
+  AlertTriangle,
+  Eye,
+  X,
+  CreditCard,
+  Building2,
+  Calendar
 } from 'lucide-react';
 
 export const AdminPage: React.FC = () => {
-  const { user, isAdmin, updateProfile } = useAuth();
-  const { categories, addCategory, refreshData } = useFinance();
+  const { user, isAdmin } = useAuth();
+  const { categories, addCategory } = useFinance();
 
-  const [activeTab, setActiveTab] = useState<'metrics' | 'users' | 'accounts' | 'transactions' | 'categories' | 'settings'>('metrics');
+  const [activeTab, setActiveTab] = useState<'metrics' | 'users' | 'accounts' | 'transactions' | 'categories'>('metrics');
   
   // Dados Globais
   const [usersList, setUsersList] = useState<User[]>([]);
@@ -50,7 +52,8 @@ export const AdminPage: React.FC = () => {
   const [newCatColor, setNewCatColor] = useState('#16A34A');
   const [catSuccess, setCatSuccess] = useState(false);
 
-  // Modal / Confirmações
+  // Modais de Inspeção e Confirmação
+  const [userToInspect, setUserToInspect] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
@@ -104,14 +107,13 @@ export const AdminPage: React.FC = () => {
   const studentUsers = usersList.filter(u => u.profileType === 'student').length;
   const workerUsers = usersList.filter(u => u.profileType === 'worker').length;
 
-  // Filtragem de utilizadores
+  // Filtragem
   const filteredUsers = usersList.filter(u => 
     u.name.toLowerCase().includes(userSearch.toLowerCase()) || 
     u.email.toLowerCase().includes(userSearch.toLowerCase()) ||
     (u.institutionOrCompany && u.institutionOrCompany.toLowerCase().includes(userSearch.toLowerCase()))
   );
 
-  // Filtragem de transacções
   const filteredTxs = transactionsList.filter(t => 
     t.title.toLowerCase().includes(txSearch.toLowerCase()) ||
     (t.description && t.description.toLowerCase().includes(txSearch.toLowerCase()))
@@ -127,13 +129,18 @@ export const AdminPage: React.FC = () => {
     setNoticeMessage(`Papel do utilizador "${targetUser.name}" alterado para ${newRole.toUpperCase()}.`);
     setTimeout(() => setNoticeMessage(null), 4000);
     loadGlobalAdminData();
+
+    if (userToInspect?.id === targetUser.id) {
+      setUserToInspect(updated);
+    }
   };
 
   const handleDeleteUserConfirm = async () => {
     if (!userToDelete) return;
     await firestoreService.deleteUser(userToDelete.id);
-    setNoticeMessage(`Utilizador "${userToDelete.name}" eliminado com sucesso.`);
+    setNoticeMessage(`Utilizador "${userToDelete.name}" e dados associados foram eliminados.`);
     setUserToDelete(null);
+    setUserToInspect(null);
     setTimeout(() => setNoticeMessage(null), 4000);
     loadGlobalAdminData();
   };
@@ -167,7 +174,7 @@ export const AdminPage: React.FC = () => {
   const handleExportGlobalAudit = () => {
     downloadFinancialPDF({
       userName: user?.name || 'Administrador Chrímata',
-      userEmail: user?.email || 'admin@chrimata.ao',
+      userEmail: user?.email || 'dossantosbraulio20@gmail.com',
       userProfile: user?.profileType || 'worker',
       periodLabel: 'Relatório Global de Auditoria de Administração',
       summary: {
@@ -193,6 +200,14 @@ export const AdminPage: React.FC = () => {
     }, 'chrimata-relatorio-auditoria-admin');
   };
 
+  // Dados calculados para inspeção do utilizador seleccionado
+  const inspectedAccounts = userToInspect ? accountsList.filter(a => a.userId === userToInspect.id) : [];
+  const inspectedTransactions = userToInspect ? transactionsList.filter(t => t.userId === userToInspect.id) : [];
+  const inspectedGoals = userToInspect ? goalsList.filter(g => g.userId === userToInspect.id) : [];
+
+  const inspectedAvailableBalance = inspectedAccounts.filter(a => !a.isSavings).reduce((sum, a) => sum + a.balance, 0);
+  const inspectedSavingsBalance = inspectedAccounts.filter(a => a.isSavings).reduce((sum, a) => sum + a.balance, 0);
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-in fade-in">
       
@@ -204,10 +219,10 @@ export const AdminPage: React.FC = () => {
             <span>Sessão de Administrador Activa ({user?.email})</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">
-            Centro de Controlo & Gestão Global
+            Centro de Controlo & Análise de Dados Reais
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Supervisão de contas, utilizadores, volume transaccionado e taxonomia monetária
+            Supervisão e auditoria de utilizadores, contas bancárias, transacções reais e poupanças
           </p>
         </div>
 
@@ -232,7 +247,7 @@ export const AdminPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Aviso de Confirmação / Feedback */}
+      {/* Feedback do Admin */}
       {noticeMessage && (
         <div className="p-3.5 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-xs font-semibold text-emerald-800 dark:text-emerald-300 rounded-xl flex items-center justify-between animate-in fade-in">
           <div className="flex items-center gap-2">
@@ -253,7 +268,7 @@ export const AdminPage: React.FC = () => {
           }`}
         >
           <TrendingUp className="w-4 h-4" />
-          <span>Métricas Globais</span>
+          <span>Métricas Globais Reais</span>
         </button>
 
         <button
@@ -311,7 +326,7 @@ export const AdminPage: React.FC = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
               <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Utilizadores Activos</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">Utilizadores Registados</span>
                 <Users className="w-4 h-4 text-indigo-600" />
               </div>
               <span className="text-3xl font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
@@ -332,96 +347,34 @@ export const AdminPage: React.FC = () => {
                 {formatKz(totalVolume)}
               </span>
               <p className="mt-2 text-[11px] text-slate-500">
-                {transactionsList.length} transacções registadas no sistema
+                {transactionsList.length} transacções processadas por utilizadores
               </p>
             </div>
 
             <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
               <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Poupança Protegida</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">Poupança Total Acumulada</span>
                 <Wallet className="w-4 h-4 text-teal-600" />
               </div>
               <span className="text-2xl font-extrabold font-mono tabular-nums text-teal-700 dark:text-teal-300">
                 {formatKz(totalSavingsLocked)}
               </span>
               <p className="mt-2 text-[11px] text-slate-500">
-                Total acumulado em contas de poupança
+                Guardado em contas de poupança isoladas
               </p>
             </div>
 
             <div className="bg-white dark:bg-slate-900 p-5 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs">
               <div className="flex items-center justify-between text-slate-500 mb-2">
-                <span className="text-[11px] font-bold uppercase tracking-wider">Objectivos Financeiros</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider">Metas de Poupança</span>
                 <Target className="w-4 h-4 text-indigo-600" />
               </div>
               <span className="text-3xl font-extrabold font-mono tabular-nums text-slate-900 dark:text-white">
                 {goalsList.length}
               </span>
               <p className="mt-2 text-[11px] text-slate-500">
-                Metas ativas de curto, médio e longo prazo
+                Objectivos criados pelos utilizadores
               </p>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-2">
-                Distribuição de Saldos por Tipo de Conta
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                Visão do capital alocado entre Conta Corrente, Carteira e Poupança
-              </p>
-              
-              <div className="space-y-3">
-                <div>
-                  <div className="flex justify-between text-xs font-semibold mb-1">
-                    <span className="text-slate-700 dark:text-slate-300">Saldo Operacional Disponível</span>
-                    <span className="font-mono text-slate-900 dark:text-white">{formatKz(totalAvailableBalance)}</span>
-                  </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-blue-600 h-full rounded-full" 
-                      style={{ width: `${totalAvailableBalance + totalSavingsLocked > 0 ? (totalAvailableBalance / (totalAvailableBalance + totalSavingsLocked)) * 100 : 50}%` }}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex justify-between text-xs font-semibold mb-1">
-                    <span className="text-slate-700 dark:text-slate-300">Reserva de Poupança Isolada</span>
-                    <span className="font-mono text-teal-700 dark:text-teal-400">{formatKz(totalSavingsLocked)}</span>
-                  </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-teal-600 h-full rounded-full" 
-                      style={{ width: `${totalAvailableBalance + totalSavingsLocked > 0 ? (totalSavingsLocked / (totalAvailableBalance + totalSavingsLocked)) * 100 : 50}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
-              <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-2">
-                Estatísticas de Perfis
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
-                Distribuição de contas entre Perfis Estudante e Trabalhador
-              </p>
-
-              <div className="grid grid-cols-2 gap-4 text-center">
-                <div className="p-4 bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 rounded-xl">
-                  <span className="text-2xl font-bold font-mono text-emerald-800 dark:text-emerald-300">{studentUsers}</span>
-                  <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-200 mt-1">Estudantes</p>
-                  <p className="text-[10px] text-emerald-700 dark:text-emerald-400">Foco em propinas e mesadas</p>
-                </div>
-
-                <div className="p-4 bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800 rounded-xl">
-                  <span className="text-2xl font-bold font-mono text-teal-800 dark:text-teal-300">{workerUsers}</span>
-                  <p className="text-xs font-semibold text-teal-900 dark:text-teal-200 mt-1">Trabalhadores</p>
-                  <p className="text-[10px] text-teal-700 dark:text-teal-400">Foco em salários e investimentos</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
@@ -432,8 +385,8 @@ export const AdminPage: React.FC = () => {
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
-              <h3 className="text-base font-bold text-slate-900 dark:text-white">Controlo de Utilizadores do Sistema</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Gerencie permissões, papéis e privilégios de acesso</p>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Gestão e Inspeção de Utilizadores</h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Clique num utilizador para ver a sua ficha financeira completa, contas e transacções</p>
             </div>
 
             <div className="relative w-full sm:w-72">
@@ -457,17 +410,20 @@ export const AdminPage: React.FC = () => {
                   <th className="px-6 py-3">Perfil</th>
                   <th className="px-6 py-3">Papel</th>
                   <th className="px-6 py-3">Instituição / Empresa</th>
-                  <th className="px-6 py-3 text-right">Acções de Administração</th>
+                  <th className="px-6 py-3 text-right">Inspecção / Controlo</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
                 {filteredUsers.map((u) => (
-                  <tr key={u.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50">
-                    <td className="px-6 py-3.5 font-bold text-slate-900 dark:text-white whitespace-nowrap">
-                      {u.name}
+                  <tr key={u.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/50 cursor-pointer">
+                    <td 
+                      onClick={() => setUserToInspect(u)}
+                      className="px-6 py-3.5 font-bold text-slate-900 dark:text-white whitespace-nowrap flex items-center gap-2 hover:text-emerald-600 transition-colors"
+                    >
+                      <span>{u.name}</span>
                     </td>
-                    <td className="px-6 py-3.5 text-slate-500 dark:text-slate-400">{u.email}</td>
-                    <td className="px-6 py-3.5 capitalize">
+                    <td onClick={() => setUserToInspect(u)} className="px-6 py-3.5 text-slate-500 dark:text-slate-400">{u.email}</td>
+                    <td onClick={() => setUserToInspect(u)} className="px-6 py-3.5 capitalize">
                       <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold ${
                         u.profileType === 'student'
                           ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
@@ -476,7 +432,7 @@ export const AdminPage: React.FC = () => {
                         {u.profileType === 'student' ? 'Estudante' : 'Trabalhador'}
                       </span>
                     </td>
-                    <td className="px-6 py-3.5 font-bold">
+                    <td onClick={() => setUserToInspect(u)} className="px-6 py-3.5 font-bold">
                       <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                         u.role === 'admin'
                           ? 'bg-indigo-100 dark:bg-indigo-950 text-indigo-800 dark:text-indigo-300 border border-indigo-200'
@@ -486,15 +442,15 @@ export const AdminPage: React.FC = () => {
                         {u.role.toUpperCase()}
                       </span>
                     </td>
-                    <td className="px-6 py-3.5 text-slate-500 dark:text-slate-400">{u.institutionOrCompany || '—'}</td>
+                    <td onClick={() => setUserToInspect(u)} className="px-6 py-3.5 text-slate-500 dark:text-slate-400">{u.institutionOrCompany || '—'}</td>
                     <td className="px-6 py-3.5 text-right whitespace-nowrap">
                       <div className="flex items-center justify-end gap-2">
                         <button
-                          onClick={() => handleToggleUserRole(u)}
-                          title={u.role === 'admin' ? 'Despromover para Utilizador Normal' : 'Promover para Administrador'}
-                          className="px-2.5 py-1 text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/60 hover:bg-indigo-100 rounded-lg transition-colors cursor-pointer border border-indigo-200"
+                          onClick={() => setUserToInspect(u)}
+                          className="px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 rounded-xl transition-colors cursor-pointer border border-emerald-200/80 flex items-center gap-1.5"
                         >
-                          {u.role === 'admin' ? 'Tornar Utilizador' : 'Tornar Admin'}
+                          <Eye className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Ver Ficha Completa</span>
                         </button>
 
                         <button
@@ -518,8 +474,8 @@ export const AdminPage: React.FC = () => {
       {activeTab === 'accounts' && (
         <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xs overflow-hidden">
           <div className="p-6 border-b border-slate-100 dark:border-slate-800">
-            <h3 className="text-base font-bold text-slate-900 dark:text-white">Auditoria de Contas Registadas</h3>
-            <p className="text-xs text-slate-500 dark:text-slate-400">Contas bancárias, carteiras físicas e depósitos de poupança no sistema</p>
+            <h3 className="text-base font-bold text-slate-900 dark:text-white">Auditoria de Contas de Utilizadores</h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Contas bancárias, carteiras físicas e depósitos de poupança criados por utilizadores</p>
           </div>
 
           <div className="overflow-x-auto">
@@ -530,7 +486,7 @@ export const AdminPage: React.FC = () => {
                   <th className="px-6 py-3">Tipo</th>
                   <th className="px-6 py-3">Saldo Actual</th>
                   <th className="px-6 py-3">Estado de Poupança</th>
-                  <th className="px-6 py-3">ID do Titular</th>
+                  <th className="px-6 py-3">Titular (ID)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
@@ -569,7 +525,7 @@ export const AdminPage: React.FC = () => {
           <div className="p-4 sm:p-6 border-b border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-base font-bold text-slate-900 dark:text-white">Auditoria Global de Transacções</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Histórico completo de entradas, saídas e transferências no Chrímata</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Histórico completo de entradas, saídas e transferências de utilizadores</p>
             </div>
 
             <div className="relative w-full sm:w-72">
@@ -621,7 +577,7 @@ export const AdminPage: React.FC = () => {
                       <button
                         onClick={() => setTxToDelete(t)}
                         className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                        title="Eliminar Transacção Inválida"
+                        title="Eliminar Transacção"
                       >
                         <Trash2 className="w-4 h-4" />
                       </button>
@@ -692,26 +648,186 @@ export const AdminPage: React.FC = () => {
               </div>
             </form>
           </div>
+        </div>
+      )}
 
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-xs">
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white mb-4">Categorias Activas no Sistema</h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {categories.map((c) => (
-                <div key={c.id} className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-bold text-slate-900 dark:text-white">{c.name}</p>
-                    <span className={`text-[10px] font-semibold uppercase ${c.type === 'income' ? 'text-emerald-600' : 'text-rose-500'}`}>
-                      {c.type === 'income' ? 'Receita' : 'Despesa'}
+      {/* MODAL DE INSPEÇÃO COMPLETA DO UTILIZADOR ("Saber exatamente tudo") */}
+      {userToInspect && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-xs overflow-y-auto animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 max-w-4xl w-full p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl space-y-6 my-8 max-h-[90vh] overflow-y-auto">
+            
+            {/* Cabeçalho do Modal de Inspeção */}
+            <div className="flex items-start justify-between border-b border-slate-100 dark:border-slate-800 pb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-100 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 font-extrabold text-lg flex items-center justify-center border border-emerald-200 dark:border-emerald-800">
+                  {userToInspect.name.substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-extrabold text-slate-900 dark:text-white">
+                      Ficha de Auditoria: {userToInspect.name}
+                    </h2>
+                    <span className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                      userToInspect.role === 'admin' 
+                        ? 'bg-indigo-100 text-indigo-800 dark:bg-indigo-950 dark:text-indigo-300' 
+                        : 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-300'
+                    }`}>
+                      {userToInspect.role.toUpperCase()}
                     </span>
                   </div>
-                  {c.isSystem && (
-                    <span className="text-[10px] font-bold bg-slate-200 dark:bg-slate-700 px-2 py-0.5 rounded text-slate-600 dark:text-slate-300">
-                      Sistema
-                    </span>
-                  )}
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {userToInspect.email} · {userToInspect.institutionOrCompany || 'Sem entidade'} · Perfil {userToInspect.profileType === 'student' ? 'Estudante' : 'Trabalhador'}
+                  </p>
                 </div>
-              ))}
+              </div>
+
+              <button
+                onClick={() => setUserToInspect(null)}
+                className="p-2 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
+
+            {/* Resumo Patrimonial do Utilizador */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="bg-slate-50 dark:bg-slate-800/60 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Saldo Operacional
+                </span>
+                <span className="text-xl font-bold font-mono text-slate-900 dark:text-white">
+                  {formatKz(inspectedAvailableBalance)}
+                </span>
+                <p className="text-[10px] text-slate-400 mt-1">Conta Corrente & Carteira</p>
+              </div>
+
+              <div className="bg-teal-50/60 dark:bg-teal-950/40 p-4 rounded-xl border border-teal-200 dark:border-teal-800">
+                <span className="text-[11px] font-bold text-teal-800 dark:text-teal-300 uppercase tracking-wider block mb-1">
+                  Poupança Isolada
+                </span>
+                <span className="text-xl font-bold font-mono text-teal-900 dark:text-teal-300">
+                  {formatKz(inspectedSavingsBalance)}
+                </span>
+                <p className="text-[10px] text-teal-700 dark:text-teal-400 mt-1">Reserva intocável protegida</p>
+              </div>
+
+              <div className="bg-indigo-50/60 dark:bg-indigo-950/40 p-4 rounded-xl border border-indigo-200 dark:border-indigo-800">
+                <span className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider block mb-1">
+                  Património Líquido Total
+                </span>
+                <span className="text-xl font-bold font-mono text-indigo-900 dark:text-indigo-300">
+                  {formatKz(inspectedAvailableBalance + inspectedSavingsBalance)}
+                </span>
+                <p className="text-[10px] text-indigo-700 dark:text-indigo-400 mt-1">Total acumulado pelo utilizador</p>
+              </div>
+            </div>
+
+            {/* Contas do Utilizador */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-emerald-600" />
+                <span>Contas Registadas ({inspectedAccounts.length})</span>
+              </h3>
+
+              {inspectedAccounts.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">O utilizador não possui contas ativas registadas.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {inspectedAccounts.map((a) => (
+                    <div key={a.id} className="p-3 bg-slate-50 dark:bg-slate-800/60 rounded-xl border border-slate-200 dark:border-slate-700 flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-bold text-slate-900 dark:text-white">{a.name}</p>
+                        <p className="text-[10px] text-slate-400 capitalize">{a.type === 'checking' ? 'Conta Corrente' : a.type === 'cash' ? 'Carteira' : 'Poupança'}</p>
+                      </div>
+                      <span className="text-xs font-bold font-mono text-slate-900 dark:text-white">
+                        {formatKz(a.balance)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Transacções do Utilizador */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Receipt className="w-4 h-4 text-emerald-600" />
+                <span>Histórico de Transacções ({inspectedTransactions.length})</span>
+              </h3>
+
+              {inspectedTransactions.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">Nenhuma transacção processada por este utilizador.</p>
+              ) : (
+                <div className="max-h-48 overflow-y-auto space-y-2 border border-slate-200 dark:border-slate-800 rounded-xl p-2 bg-slate-50 dark:bg-slate-800/40">
+                  {inspectedTransactions.map((t) => (
+                    <div key={t.id} className="p-2.5 bg-white dark:bg-slate-900 rounded-lg border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+                      <div>
+                        <p className="font-bold text-slate-900 dark:text-white">{t.title}</p>
+                        <p className="text-[10px] text-slate-400">{formatDatePt(t.date)} · {t.type.toUpperCase()}</p>
+                      </div>
+                      <span className={`font-mono font-bold ${t.type === 'income' ? 'text-emerald-600' : 'text-slate-900 dark:text-white'}`}>
+                        {formatKz(t.amount)}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Objectivos do Utilizador */}
+            <div className="space-y-3">
+              <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                <Target className="w-4 h-4 text-indigo-600" />
+                <span>Metas de Poupança ({inspectedGoals.length})</span>
+              </h3>
+
+              {inspectedGoals.length === 0 ? (
+                <p className="text-xs text-slate-400 italic">O utilizador não criou metas de poupança.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {inspectedGoals.map((g) => (
+                    <div key={g.id} className="p-3 bg-indigo-50/50 dark:bg-indigo-950/40 rounded-xl border border-indigo-200 dark:border-indigo-800 text-xs">
+                      <div className="flex items-center justify-between font-bold text-slate-900 dark:text-white mb-1">
+                        <span>{g.title}</span>
+                        <span className="text-indigo-600">{Math.round((g.currentAmount / g.targetAmount) * 100)}%</span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 font-mono">
+                        Poupado: {formatKz(g.currentAmount)} de {formatKz(g.targetAmount)}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Rodapé de Acções de Admin */}
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => handleToggleUserRole(userToInspect)}
+                  className="px-3 py-2 text-xs font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950 hover:bg-indigo-100 rounded-xl transition-colors cursor-pointer border border-indigo-200"
+                >
+                  {userToInspect.role === 'admin' ? 'Tornar Utilizador Normal' : 'Promover a Administrador'}
+                </button>
+
+                <button
+                  onClick={() => {
+                    setUserToDelete(userToInspect);
+                  }}
+                  className="px-3 py-2 text-xs font-bold text-rose-700 dark:text-rose-300 bg-rose-50 dark:bg-rose-950 hover:bg-rose-100 rounded-xl transition-colors cursor-pointer border border-rose-200"
+                >
+                  Eliminar Utilizador
+                </button>
+              </div>
+
+              <button
+                onClick={() => setUserToInspect(null)}
+                className="px-4 py-2 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Fechar Ficha
+              </button>
+            </div>
+
           </div>
         </div>
       )}

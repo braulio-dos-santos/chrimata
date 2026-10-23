@@ -1,5 +1,4 @@
-import { User, Category, Transaction, Budget, EducationalTip, FinancialGoal, Account, AccountType } from '../types/finance';
-import { getCurrentMonthYear } from '../utils/currency';
+import { User, Category, Transaction, Budget, EducationalTip, FinancialGoal, Account } from '../types/finance';
 
 const STORAGE_KEYS = {
   USERS: 'chrimata_users_v2',
@@ -37,6 +36,16 @@ export const DEMO_USERS: User[] = [
   {
     id: 'user_admin',
     name: 'Administrador Chrímata',
+    email: 'dossantosbraulio20@gmail.com',
+    role: 'admin',
+    profileType: 'worker',
+    currency: 'AOA',
+    institutionOrCompany: 'Gabinete de Gestão Chrímata',
+    createdAt: '2026-01-01T00:00:00Z',
+  },
+  {
+    id: 'user_admin_alt',
+    name: 'Administrador Chrímata (Secundário)',
     email: 'admin@chrimata.ao',
     role: 'admin',
     profileType: 'worker',
@@ -46,98 +55,21 @@ export const DEMO_USERS: User[] = [
   },
 ];
 
+// Administrador não possui contas de poupança ou movimentos pessoais
 export function createDemoAccounts(): Account[] {
-  return [
-    // Contas do Administrador
-    {
-      id: 'acc_admin_checking',
-      userId: 'user_admin',
-      name: 'Minha Conta Corrente',
-      type: 'checking',
-      balance: 550000,
-      color: '#0284C7',
-      isSavings: false,
-      createdAt: '2026-01-01T00:00:00Z',
-    },
-    {
-      id: 'acc_admin_cash',
-      userId: 'user_admin',
-      name: 'Minha Carteira (Dinheiro Físico)',
-      type: 'cash',
-      balance: 40000,
-      color: '#16A34A',
-      isSavings: false,
-      createdAt: '2026-01-01T00:00:00Z',
-    },
-    {
-      id: 'acc_admin_savings',
-      userId: 'user_admin',
-      name: 'Poupança Corporativa',
-      type: 'savings',
-      balance: 1200000,
-      color: '#0F766E',
-      isSavings: true,
-      createdAt: '2026-01-01T00:00:00Z',
-    },
-  ];
+  return [];
 }
 
 function createDemoTransactions(): Transaction[] {
-  const currentMonth = getCurrentMonthYear();
-  const [year, month] = currentMonth.split('-');
-
-  return [
-    {
-      id: 'tx_a1',
-      userId: 'user_admin',
-      accountId: 'acc_admin_checking',
-      categoryId: 'cat_salario',
-      title: 'Vencimento de Gestão',
-      amount: 850000,
-      type: 'income',
-      date: `${year}-${month}-01`,
-      description: 'Crédito na Conta Corrente',
-      paymentMethod: 'transferencia',
-      createdAt: `${year}-${month}-01T09:00:00Z`,
-    },
-    {
-      id: 'tx_a_tr1',
-      userId: 'user_admin',
-      accountId: 'acc_admin_checking',
-      toAccountId: 'acc_admin_cash',
-      categoryId: 'cat_transfer',
-      title: 'Levantamento para Carteira',
-      amount: 50000,
-      type: 'transfer',
-      date: `${year}-${month}-02`,
-      description: 'Dinheiro vivo para carteira física',
-      paymentMethod: 'multicaixa',
-      createdAt: `${year}-${month}-02T12:00:00Z`,
-    },
-    {
-      id: 'tx_a_tr2',
-      userId: 'user_admin',
-      accountId: 'acc_admin_checking',
-      toAccountId: 'acc_admin_savings',
-      categoryId: 'cat_transfer',
-      title: 'Aporte para Poupança Corporativa',
-      amount: 200000,
-      type: 'transfer',
-      date: `${year}-${month}-03`,
-      description: 'Transferência para Poupança (fora do saldo operacional)',
-      paymentMethod: 'transferencia',
-      createdAt: `${year}-${month}-03T10:00:00Z`,
-    },
-  ];
+  return [];
 }
 
 function createDemoBudgets(): Budget[] {
-  const currentMonth = getCurrentMonthYear();
-  return [
-    { id: 'b_a1', userId: 'user_admin', categoryId: 'cat_alimentacao', amountLimit: 150000, monthYear: currentMonth },
-    { id: 'b_a2', userId: 'user_admin', categoryId: 'cat_servicos', amountLimit: 50000, monthYear: currentMonth },
-    { id: 'b_a3', userId: 'user_admin', categoryId: 'cat_transporte', amountLimit: 60000, monthYear: currentMonth },
-  ];
+  return [];
+}
+
+export function createDemoGoals(): FinancialGoal[] {
+  return [];
 }
 
 export const DEFAULT_TIPS: EducationalTip[] = [
@@ -191,40 +123,6 @@ Passos para construir:
   },
 ];
 
-export function createDemoGoals(): FinancialGoal[] {
-  return [
-    // Metas do Administrador
-    {
-      id: 'goal_admin_reserve',
-      userId: 'user_admin',
-      title: 'Fundo Estratégico de Reserva',
-      targetAmount: 2500000,
-      currentAmount: 1200000,
-      deadline: '2026-12-31',
-      term: 'short',
-      category: 'Reserva & Segurança',
-      savingsAccountId: 'acc_admin_savings',
-      status: 'active',
-      notes: 'Manutenção de liquidez operacional e de contingência.',
-      createdAt: '2026-01-01T00:00:00Z',
-    },
-    {
-      id: 'goal_admin_exp',
-      userId: 'user_admin',
-      title: 'Expansão de Projecto Financeiro',
-      targetAmount: 8000000,
-      currentAmount: 2400000,
-      deadline: '2028-06-30',
-      term: 'medium',
-      category: 'Educação & Especialização',
-      savingsAccountId: 'acc_admin_savings',
-      status: 'active',
-      notes: 'Fundo reservado para investimento de médio prazo.',
-      createdAt: '2026-01-01T00:00:00Z',
-    },
-  ];
-}
-
 export function initStorage(): void {
   if (typeof window === 'undefined') return;
 
@@ -234,9 +132,8 @@ export function initStorage(): void {
   } else {
     try {
       const parsed: User[] = JSON.parse(existingUsersRaw);
-      // Remove legacy test users
       const cleaned = parsed.filter(u => u.id !== 'user_student' && u.id !== 'user_worker');
-      if (cleaned.length === 0) cleaned.push(DEMO_USERS[0]);
+      if (cleaned.length === 0) cleaned.push(...DEMO_USERS);
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(cleaned));
     } catch {
       localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEMO_USERS));
@@ -330,7 +227,7 @@ export const storageService = {
     initStorage();
     try {
       const data = localStorage.getItem(STORAGE_KEYS.ACCOUNTS);
-      const list: Account[] = data ? JSON.parse(data) : createDemoAccounts();
+      const list: Account[] = data ? JSON.parse(data) : [];
       if (userId) {
         return list.filter(a => a.userId === userId);
       }
@@ -401,12 +298,10 @@ export const storageService = {
       throw new Error('O montante a transferir deve ser superior a zero.');
     }
 
-    // Debita a conta de origem e credita a de destino
     fromAcc.balance -= amount;
     toAcc.balance += amount;
     localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
 
-    // Regista a transacção do tipo transfer
     const newTx: Transaction = {
       id: 'tx_tr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
       userId,
@@ -469,7 +364,6 @@ export const storageService = {
       createdAt: new Date().toISOString(),
     };
 
-    // Actualiza o saldo da conta associada se fornecida
     if (tx.accountId) {
       const accounts = this.getAccounts();
       const acc = accounts.find(a => a.id === tx.accountId);
@@ -583,12 +477,12 @@ export const storageService = {
     }
   },
 
-  // Objectivos de Consumo e Poupança (Curto, Médio e Longo Prazo)
+  // Objectivos
   getGoals(userId?: string): FinancialGoal[] {
     initStorage();
     try {
       const data = localStorage.getItem(STORAGE_KEYS.GOALS);
-      const list: FinancialGoal[] = data ? JSON.parse(data) : createDemoGoals();
+      const list: FinancialGoal[] = data ? JSON.parse(data) : [];
       if (userId) {
         return list.filter(g => g.userId === userId);
       }
@@ -656,7 +550,6 @@ export const storageService = {
 
     let createdTx: Transaction | undefined;
 
-    // Se fornecida conta de débito (ex: Corrente ou Carteira), transfere o valor para a Conta de Poupança vinculada
     if (sourceAccountId) {
       const accounts = this.getAccounts();
       const sourceAcc = accounts.find(a => a.id === sourceAccountId);
@@ -664,12 +557,11 @@ export const storageService = {
         throw new Error('Conta de débito não encontrada.');
       }
       if (sourceAcc.balance < amount) {
-        throw new Error(`Saldo insuficiente na conta ${sourceAcc.name} (Saldo actual: ${sourceAcc.balance} Kz).`);
+        throw new Error(`Saldo insuficiente na conta ${sourceAcc.name}.`);
       }
 
       sourceAcc.balance -= amount;
 
-      // Se o objectivo possui uma conta de poupança vinculada, credita o saldo da poupança
       if (goal.savingsAccountId) {
         const savingsAcc = accounts.find(a => a.id === goal.savingsAccountId);
         if (savingsAcc) {
@@ -678,7 +570,6 @@ export const storageService = {
       }
       localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(accounts));
 
-      // Regista transacção interna de aporte
       createdTx = {
         id: 'tx_aporte_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
         userId,
@@ -689,7 +580,7 @@ export const storageService = {
         amount,
         type: 'transfer',
         date: new Date().toISOString().split('T')[0],
-        description: note || `Aporte dedicado ao objectivo "${goal.title}" (${goal.term === 'short' ? 'Curto' : goal.term === 'medium' ? 'Médio' : 'Longo'} Prazo).`,
+        description: note || `Aporte dedicado ao objectivo "${goal.title}".`,
         paymentMethod: sourceAcc.type === 'cash' ? 'dinheiro' : 'transferencia',
         createdAt: new Date().toISOString(),
       };
@@ -699,7 +590,6 @@ export const storageService = {
       localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(transactions));
     }
 
-    // Actualiza o progresso do objectivo
     goal.currentAmount += amount;
     if (goal.currentAmount >= goal.targetAmount) {
       goal.status = 'completed';
@@ -709,15 +599,14 @@ export const storageService = {
     return { goal, tx: createdTx };
   },
 
-  // Redefinir para dados de fábrica
   resetToDemoData(): void {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEMO_USERS));
     localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES));
-    localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(createDemoAccounts()));
-    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(createDemoTransactions()));
-    localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify(createDemoBudgets()));
+    localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify([]));
+    localStorage.setItem(STORAGE_KEYS.BUDGETS, JSON.stringify([]));
     localStorage.setItem(STORAGE_KEYS.TIPS, JSON.stringify(DEFAULT_TIPS));
-    localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify(createDemoGoals()));
+    localStorage.setItem(STORAGE_KEYS.GOALS, JSON.stringify([]));
   },
 };
