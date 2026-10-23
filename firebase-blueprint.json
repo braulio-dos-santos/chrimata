@@ -1,0 +1,130 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile in Chrímata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "profileType": { "type": "string", "enum": ["student", "worker"] },
+        "currency": { "type": "string" },
+        "institutionOrCompany": { "type": "string" },
+        "avatar": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "name", "email", "role", "profileType"]
+    },
+    "Account": {
+      "title": "Account",
+      "description": "Bank, cash wallet, or savings account",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["checking", "cash", "savings"] },
+        "balance": { "type": "number" },
+        "color": { "type": "string" },
+        "isSavings": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "name", "type", "balance"]
+    },
+    "Transaction": {
+      "title": "Transaction",
+      "description": "Income, expense or transfer transaction",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "accountId": { "type": "string" },
+        "toAccountId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "title": { "type": "string" },
+        "amount": { "type": "number" },
+        "type": { "type": "string", "enum": ["income", "expense", "transfer"] },
+        "date": { "type": "string" },
+        "description": { "type": "string" },
+        "paymentMethod": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "amount", "type", "date"]
+    },
+    "Category": {
+      "title": "Category",
+      "description": "Financial category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "name": { "type": "string" },
+        "type": { "type": "string", "enum": ["income", "expense"] },
+        "icon": { "type": "string" },
+        "color": { "type": "string" },
+        "isSystem": { "type": "boolean" }
+      },
+      "required": ["id", "name", "type"]
+    },
+    "Budget": {
+      "title": "Budget",
+      "description": "Monthly budget limit per category",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "categoryId": { "type": "string" },
+        "amountLimit": { "type": "number" },
+        "monthYear": { "type": "string" }
+      },
+      "required": ["id", "userId", "categoryId", "amountLimit", "monthYear"]
+    },
+    "FinancialGoal": {
+      "title": "FinancialGoal",
+      "description": "Consumption or savings goal",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "targetAmount": { "type": "number" },
+        "currentAmount": { "type": "number" },
+        "deadline": { "type": "string" },
+        "term": { "type": "string", "enum": ["short", "medium", "long"] },
+        "category": { "type": "string" },
+        "savingsAccountId": { "type": "string" },
+        "status": { "type": "string", "enum": ["active", "completed", "cancelled"] },
+        "notes": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["id", "userId", "title", "targetAmount", "currentAmount", "term"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/accounts/{accountId}": {
+      "schema": "Account",
+      "description": "User accounts"
+    },
+    "/transactions/{transactionId}": {
+      "schema": "Transaction",
+      "description": "User transactions"
+    },
+    "/categories/{categoryId}": {
+      "schema": "Category",
+      "description": "System and custom categories"
+    },
+    "/budgets/{budgetId}": {
+      "schema": "Budget",
+      "description": "User budget limits"
+    },
+    "/goals/{goalId}": {
+      "schema": "FinancialGoal",
+      "description": "User financial goals"
+    }
+  }
+}

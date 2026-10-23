@@ -1,6 +1,14 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, ProfileType } from '../types/finance';
 import { storageService, DEMO_USERS } from '../services/storage';
+import { auth } from '../services/firebase';
+import { firestoreService } from '../services/firestoreService';
+import { 
+  signInWithEmailAndPassword, 
+  createUserWithEmailAndPassword, 
+  signOut as fbSignOut, 
+  onAuthStateChanged 
+} from 'firebase/auth';
 
 interface AuthContextType {
   user: User | null;
@@ -21,14 +29,66 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const current = storageService.getCurrentUser();
-    setUser(current);
-    setLoading(false);
+    // Listener de estado de autenticação Firebase Auth
+    const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
+      if (fbUser) {
+        let profile = await firestoreService.getUserProfile(fbUser.uid);
+        if (!profile) {
+          profile = {
+            id: fbUser.uid,
+            name: fbUser.displayName || fbUser.email?.split('@')[0] || 'Utilizador Chrímata',
+            email: fbUser.email || '',
+            role: fbUser.email === 'admin@chrimata.ao' ? 'admin' : 'user',
+            profileType: 'worker',
+            currency: 'AOA',
+            institutionOrCompany: 'Empresa / Sector de Actividade',
+            createdAt: new Date().toISOString(),
+          };
+          await firestoreService.saveUserProfile(profile);
+        }
+        setUser(profile);
+        storageService.setCurrentUser(profile);
+      } else {
+        const localCurrent = storageService.getCurrentUser();
+        setUser(localCurrent);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
-  const login = async (email: string): Promise<{ success: boolean; message?: string }> => {
-    const users = storageService.getUsers();
+  const login = async (email: string, password?: string): Promise<{ success: boolean; message?: string }> => {
     const cleanEmail = email.trim().toLowerCase();
+
+    // Tenta primeiro via Firebase Auth se fornecida palavra-passe
+    if (password && password.length >= 6) {
+      try {
+        const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+        let profile = await firestoreService.getUserProfile(cred.user.uid);
+        if (!profile) {
+          profile = {
+            id: cred.user.uid,
+            name: cred.user.displayName || cleanEmail.split('@')[0],
+            email: cleanEmail,
+            role: cleanEmail === 'admin@chrimata.ao' ? 'admin' : 'user',
+            profileType: 'worker',
+            currency: 'AOA',
+            institutionOrCompany: 'Empresa / Sector de Actividade',
+            createdAt: new Date().toISOString(),
+          };
+          await firestoreService.saveUserProfile(profile);
+        }
+        setUser(profile);
+        storageService.setCurrentUser(profile);
+        return { success: true };
+      } catch (fbErr: any) {
+        console.warn('Firebase Auth Login fallback:', fbErr.message);
+      }
+    }
+
+    // Fallback de login local para administradores/utilizadores locais
+    const users = storageService.getUsers();
     const found = users.find(u => u.email.toLowerCase() === cleanEmail);
 
     if (found) {
@@ -46,36 +106,65 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const register = async (
     name: string,
     email: string,
-    _password: string,
+    password: string,
     profileType: ProfileType,
     institutionOrCompany?: string
   ): Promise<{ success: boolean; message?: string }> => {
-    const users = storageService.getUsers();
     const cleanEmail = email.trim().toLowerCase();
 
-    if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
-      return { success: false, message: 'Já existe uma conta com este endereço de e-mail.' };
+    try {
+      // Regista conta no Firebase Auth
+      const cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+      const newUser: User = {
+        id: cred.user.uid,
+        name: name.trim(),
+        email: cleanEmail,
+        role: cleanEmail === 'admin@chrimata.ao' ? 'admin' : 'user',
+        profileType,
+        currency: 'AOA',
+        institutionOrCompany: institutionOrCompany?.trim() || (profileType === 'student' ? 'Universidade / Instituto' : 'Empresa / Sector de Actividade'),
+        avatar: profileType === 'student' ? '/src/assets/images/avatar_student_1792544187412.jpg' : '/src/assets/images/avatar_worker_1792544188229.jpg',
+        createdAt: new Date().toISOString(),
+      };
+
+      await firestoreService.saveUserProfile(newUser);
+      storageService.saveUser(newUser);
+      storageService.setCurrentUser(newUser);
+      setUser(newUser);
+      return { success: true };
+    } catch (err: any) {
+      console.warn('Erro ao registar no Firebase Auth, a utilizar fallback local:', err.message);
+
+      const users = storageService.getUsers();
+      if (users.some(u => u.email.toLowerCase() === cleanEmail)) {
+        return { success: false, message: 'Já existe uma conta com este endereço de e-mail.' };
+      }
+
+      const newUser: User = {
+        id: 'usr_' + Date.now(),
+        name: name.trim(),
+        email: cleanEmail,
+        role: cleanEmail === 'admin@chrimata.ao' ? 'admin' : 'user',
+        profileType,
+        currency: 'AOA',
+        institutionOrCompany: institutionOrCompany?.trim() || (profileType === 'student' ? 'Universidade / Instituto' : 'Empresa / Sector de Actividade'),
+        avatar: profileType === 'student' ? '/src/assets/images/avatar_student_1792544187412.jpg' : '/src/assets/images/avatar_worker_1792544188229.jpg',
+        createdAt: new Date().toISOString(),
+      };
+
+      storageService.saveUser(newUser);
+      storageService.setCurrentUser(newUser);
+      setUser(newUser);
+      return { success: true };
     }
-
-    const newUser: User = {
-      id: 'usr_' + Date.now(),
-      name: name.trim(),
-      email: cleanEmail,
-      role: 'user',
-      profileType,
-      currency: 'AOA',
-      institutionOrCompany: institutionOrCompany?.trim() || (profileType === 'student' ? 'Universidade / Instituto' : 'Empresa / Sector de Actividade'),
-      avatar: profileType === 'student' ? '/src/assets/images/avatar_student_1792544187412.jpg' : '/src/assets/images/avatar_worker_1792544188229.jpg',
-      createdAt: new Date().toISOString(),
-    };
-
-    storageService.saveUser(newUser);
-    storageService.setCurrentUser(newUser);
-    setUser(newUser);
-    return { success: true };
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      await fbSignOut(auth);
+    } catch {
+      // Ignora erro se não houver sessão activa
+    }
     setUser(null);
     storageService.setCurrentUser(null);
     localStorage.removeItem('chrimata_current_user_v1');
@@ -92,11 +181,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const updateProfile = (data: Partial<User>) => {
+  const updateProfile = async (data: Partial<User>) => {
     if (!user) return;
     const updated = { ...user, ...data };
     storageService.saveUser(updated);
     setUser(updated);
+    await firestoreService.saveUserProfile(updated);
   };
 
   const resetDemoData = () => {
@@ -106,10 +196,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
         <div className="text-center">
           <div className="w-8 h-8 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-3"></div>
-          <p className="text-xs text-slate-500 font-medium">A carregar Chrímata...</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">A carregar Chrímata...</p>
         </div>
       </div>
     );

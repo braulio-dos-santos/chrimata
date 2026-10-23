@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 import { Transaction, Category, Budget, EducationalTip, FinancialSummary, Account, FinancialGoal } from '../types/finance';
 import { storageService, DEFAULT_CATEGORIES } from '../services/storage';
+import { firestoreService } from '../services/firestoreService';
 import { useAuth } from './AuthContext';
 import { getCurrentMonthYear } from '../utils/currency';
 
@@ -15,25 +16,25 @@ interface FinanceContextType {
   setSelectedMonthYear: (my: string) => void;
   summary: FinancialSummary;
   categorySpending: { category: Category; spent: number; budget?: Budget; percentage: number }[];
-  addTransaction: (data: Omit<Transaction, 'id' | 'createdAt' | 'userId'>) => Transaction;
-  updateTransaction: (tx: Transaction) => void;
-  deleteTransaction: (id: string) => void;
-  saveBudget: (categoryId: string, amountLimit: number) => void;
-  deleteBudget: (id: string) => void;
-  addCategory: (cat: Omit<Category, 'id' | 'isSystem'>) => void;
-  createAccount: (data: Omit<Account, 'id' | 'createdAt' | 'userId'>) => Account;
-  updateAccount: (acc: Account) => void;
-  deleteAccount: (id: string) => void;
+  addTransaction: (data: Omit<Transaction, 'id' | 'createdAt' | 'userId'>) => Promise<Transaction>;
+  updateTransaction: (tx: Transaction) => Promise<void>;
+  deleteTransaction: (id: string) => Promise<void>;
+  saveBudget: (categoryId: string, amountLimit: number) => Promise<void>;
+  deleteBudget: (id: string) => Promise<void>;
+  addCategory: (cat: Omit<Category, 'id' | 'isSystem'>) => Promise<void>;
+  createAccount: (data: Omit<Account, 'id' | 'createdAt' | 'userId'>) => Promise<Account>;
+  updateAccount: (acc: Account) => Promise<void>;
+  deleteAccount: (id: string) => Promise<void>;
   transferBetweenAccounts: (
     fromAccountId: string,
     toAccountId: string,
     amount: number,
     date: string,
     description?: string
-  ) => Transaction;
-  saveGoal: (goal: Omit<FinancialGoal, 'id' | 'createdAt' | 'userId'> & { id?: string }) => FinancialGoal;
-  deleteGoal: (id: string) => void;
-  contributeToGoal: (goalId: string, amount: number, sourceAccountId?: string, note?: string) => void;
+  ) => Promise<Transaction>;
+  saveGoal: (goal: Omit<FinancialGoal, 'id' | 'createdAt' | 'userId'> & { id?: string }) => Promise<FinancialGoal>;
+  deleteGoal: (id: string) => Promise<void>;
+  contributeToGoal: (goalId: string, amount: number, sourceAccountId?: string, note?: string) => Promise<void>;
   refreshData: () => void;
 }
 
@@ -49,7 +50,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [tips, setTips] = useState<EducationalTip[]>([]);
   const [goals, setGoals] = useState<FinancialGoal[]>([]);
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     if (!user) {
       setAccounts([]);
       setTransactions([]);
@@ -57,19 +58,39 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setGoals([]);
       return;
     }
-    const allAccs = storageService.getAccounts(user.id);
-    const allTx = storageService.getTransactions(user.id);
-    const allCats = storageService.getCategories();
-    const allBudgets = storageService.getBudgets(user.id, selectedMonthYear);
-    const allTips = storageService.getTips();
-    const allGoals = storageService.getGoals(user.id);
 
-    setAccounts(allAccs);
-    setTransactions(allTx);
-    setCategories(allCats);
-    setBudgets(allBudgets);
-    setTips(allTips);
-    setGoals(allGoals);
+    try {
+      // Tenta carregar do Firestore (Nuvem)
+      const [allAccs, allTx, allCats, allBudgets, allGoals] = await Promise.all([
+        firestoreService.getAccounts(user.id),
+        firestoreService.getTransactions(user.id),
+        firestoreService.getCategories(),
+        firestoreService.getBudgets(user.id, selectedMonthYear),
+        firestoreService.getGoals(user.id),
+      ]);
+
+      setAccounts(allAccs);
+      setTransactions(allTx);
+      setCategories(allCats);
+      setBudgets(allBudgets);
+      setTips(firestoreService.getTips());
+      setGoals(allGoals);
+    } catch {
+      // Fallback para LocalStorage se a nuvem estiver indisponível
+      const allAccs = storageService.getAccounts(user.id);
+      const allTx = storageService.getTransactions(user.id);
+      const allCats = storageService.getCategories();
+      const allBudgets = storageService.getBudgets(user.id, selectedMonthYear);
+      const allTips = storageService.getTips();
+      const allGoals = storageService.getGoals(user.id);
+
+      setAccounts(allAccs);
+      setTransactions(allTx);
+      setCategories(allCats);
+      setBudgets(allBudgets);
+      setTips(allTips);
+      setGoals(allGoals);
+    }
   }, [user, selectedMonthYear]);
 
   useEffect(() => {
@@ -78,20 +99,16 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
 
   // Cálculos de Resumo Financeiro com Contas & Poupança Separada
   const summary: FinancialSummary = useMemo(() => {
-    // 1. Saldo Disponível Operacional = Soma das contas NÃO-poupança (Conta Corrente, Minha Carteira, etc.)
     const totalAvailableBalance = accounts
       .filter((a) => !a.isSavings)
       .reduce((sum, a) => sum + a.balance, 0);
 
-    // 2. Saldo de Poupança = Soma de todas as contas do tipo poupança (protegido do saldo geral)
     const totalSavingsBalance = accounts
       .filter((a) => a.isSavings)
       .reduce((sum, a) => sum + a.balance, 0);
 
-    // 3. Património Total = Disponível + Poupança
     const totalNetWorth = totalAvailableBalance + totalSavingsBalance;
 
-    // 4. Receitas e Despesas do Mês (Transferências internas entre contas não contam como despesa/receita externa)
     let monthlyIncome = 0;
     let monthlyExpense = 0;
 
@@ -125,7 +142,6 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       totalBudgetSpent += spent;
     });
 
-    // 5. Métricas de Objectivos de Consumo & Poupança
     const activeGoals = goals.filter((g) => g.status === 'active');
     const completedGoals = goals.filter((g) => g.status === 'completed');
     const totalGoalsTarget = activeGoals.reduce((sum, g) => sum + g.targetAmount, 0);
@@ -138,7 +154,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       totalAvailableBalance,
       totalSavingsBalance,
       totalNetWorth,
-      totalBalance: totalAvailableBalance, // Regra do utilizador: Poupança NÃO é contabilizada no geral
+      totalBalance: totalAvailableBalance,
       monthlyIncome,
       monthlyExpense,
       savingsRate,
@@ -179,73 +195,90 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       .sort((a, b) => b.spent - a.spent);
   }, [categories, transactions, budgets, selectedMonthYear]);
 
-  const addTransaction = (data: Omit<Transaction, 'id' | 'createdAt' | 'userId'>) => {
+  const addTransaction = async (data: Omit<Transaction, 'id' | 'createdAt' | 'userId'>) => {
     if (!user) throw new Error('Utilizador não autenticado');
-    const created = storageService.addTransaction({
+    const created = await firestoreService.addTransaction({
       ...data,
       userId: user.id,
     });
-    loadData();
+    storageService.addTransaction({ ...data, userId: user.id });
+    await loadData();
     return created;
   };
 
-  const updateTransaction = (tx: Transaction) => {
+  const updateTransaction = async (tx: Transaction) => {
+    await firestoreService.updateTransaction(tx);
     storageService.updateTransaction(tx);
-    loadData();
+    await loadData();
   };
 
-  const deleteTransaction = (id: string) => {
+  const deleteTransaction = async (id: string) => {
+    const tx = transactions.find(t => t.id === id);
+    if (tx) {
+      await firestoreService.deleteTransaction(tx);
+    }
     storageService.deleteTransaction(id);
-    loadData();
+    await loadData();
   };
 
-  const saveBudget = (categoryId: string, amountLimit: number) => {
+  const saveBudget = async (categoryId: string, amountLimit: number) => {
     if (!user) return;
+    await firestoreService.saveBudget({
+      userId: user.id,
+      categoryId,
+      amountLimit,
+      monthYear: selectedMonthYear,
+    });
     storageService.saveBudget({
       userId: user.id,
       categoryId,
       amountLimit,
       monthYear: selectedMonthYear,
     });
-    loadData();
+    await loadData();
   };
 
-  const deleteBudget = (id: string) => {
+  const deleteBudget = async (id: string) => {
+    await firestoreService.deleteBudget(id);
     storageService.deleteBudget(id);
-    loadData();
+    await loadData();
   };
 
-  const addCategory = (cat: Omit<Category, 'id' | 'isSystem'>) => {
+  const addCategory = async (cat: Omit<Category, 'id' | 'isSystem'>) => {
     const newCat: Category = {
       ...cat,
       id: 'cat_custom_' + Date.now(),
       isSystem: false,
     };
+    await firestoreService.addCategory(newCat);
     storageService.addCategory(newCat);
-    loadData();
+    await loadData();
   };
 
-  const createAccount = (data: Omit<Account, 'id' | 'createdAt' | 'userId'>) => {
+  const createAccount = async (data: Omit<Account, 'id' | 'createdAt' | 'userId'>) => {
     if (!user) throw new Error('Utilizador não autenticado');
-    const acc = storageService.createAccount({
+    const acc = await firestoreService.createAccount({
       ...data,
       userId: user.id,
     });
-    loadData();
+    storageService.createAccount({ ...data, userId: user.id });
+    await loadData();
     return acc;
   };
 
-  const updateAccount = (acc: Account) => {
+  const updateAccount = async (acc: Account) => {
+    await firestoreService.updateAccount(acc);
     storageService.updateAccount(acc);
-    loadData();
+    await loadData();
   };
 
-  const deleteAccount = (id: string) => {
+  const deleteAccount = async (id: string) => {
+    await firestoreService.deleteAccount(id);
     storageService.deleteAccount(id);
-    loadData();
+    await loadData();
   };
 
-  const transferBetweenAccounts = (
+  const transferBetweenAccounts = async (
     fromAccountId: string,
     toAccountId: string,
     amount: number,
@@ -253,7 +286,7 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
     description?: string
   ) => {
     if (!user) throw new Error('Utilizador não autenticado');
-    const tx = storageService.transferBetweenAccounts(
+    const tx = await firestoreService.transferBetweenAccounts(
       user.id,
       fromAccountId,
       toAccountId,
@@ -261,29 +294,33 @@ export const FinanceProvider: React.FC<{ children: React.ReactNode }> = ({ child
       date,
       description
     );
-    loadData();
+    storageService.transferBetweenAccounts(user.id, fromAccountId, toAccountId, amount, date, description);
+    await loadData();
     return tx;
   };
 
-  const saveGoal = (goalData: Omit<FinancialGoal, 'id' | 'createdAt' | 'userId'> & { id?: string }) => {
+  const saveGoal = async (goalData: Omit<FinancialGoal, 'id' | 'createdAt' | 'userId'> & { id?: string }) => {
     if (!user) throw new Error('Utilizador não autenticado');
-    const saved = storageService.saveGoal({
+    const saved = await firestoreService.saveGoal({
       ...goalData,
       userId: user.id,
     });
-    loadData();
+    storageService.saveGoal({ ...goalData, userId: user.id });
+    await loadData();
     return saved;
   };
 
-  const deleteGoal = (id: string) => {
+  const deleteGoal = async (id: string) => {
+    await firestoreService.deleteGoal(id);
     storageService.deleteGoal(id);
-    loadData();
+    await loadData();
   };
 
-  const contributeToGoal = (goalId: string, amount: number, sourceAccountId?: string, note?: string) => {
+  const contributeToGoal = async (goalId: string, amount: number, sourceAccountId?: string, note?: string) => {
     if (!user) throw new Error('Utilizador não autenticado');
+    await firestoreService.contributeToGoal(user.id, goalId, amount, sourceAccountId, note);
     storageService.contributeToGoal(user.id, goalId, amount, sourceAccountId, note);
-    loadData();
+    await loadData();
   };
 
   return (
