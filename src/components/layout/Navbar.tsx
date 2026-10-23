@@ -10,7 +10,6 @@ import {
   ShieldCheck, 
   GraduationCap, 
   Briefcase, 
-  RotateCcw,
   BookOpen,
   PieChart,
   Receipt,
@@ -30,12 +29,16 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenNewTransaction }) => {
-  const { user, isAuthenticated, logout, switchDemoUser, resetDemoData, isAdmin } = useAuth();
+  const { user, isAuthenticated, logout, isAdmin } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  const navItems = [
+  const adminNavItems = [
+    { id: 'admin', label: 'Análise & Supervisão Global de Dados', icon: ShieldCheck },
+  ];
+
+  const userNavItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'accounts', label: 'Contas', icon: Wallet },
     { id: 'goals', label: 'Objectivos', icon: Target },
@@ -43,8 +46,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenN
     { id: 'budgets', label: 'Orçamentos', icon: PieChart },
     { id: 'reports', label: 'Relatórios & Gráficos', icon: BarChart3 },
     { id: 'education', label: 'Educação', icon: BookOpen },
-    ...(isAdmin ? [{ id: 'admin', label: 'Administração', icon: ShieldCheck }] : []),
   ];
+
+  const navItems = isAdmin ? adminNavItems : userNavItems;
 
   const getInitials = (name?: string) => {
     if (!name) return 'CH';
@@ -61,7 +65,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenN
           {/* Zona 1: Marca Wordmark */}
           <div className="flex items-center gap-3 shrink-0">
             <button 
-              onClick={() => onTabChange('dashboard')} 
+              onClick={() => onTabChange(isAdmin ? 'admin' : 'dashboard')} 
               className="flex items-center gap-2.5 text-left group cursor-pointer"
             >
               <div className="w-9 h-9 rounded-xl bg-emerald-600 flex items-center justify-center text-white font-bold text-lg shadow-sm group-hover:bg-emerald-700 transition-colors">
@@ -72,7 +76,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenN
                   Chrímata
                 </span>
                 <span className="hidden sm:block text-[11px] text-slate-500 dark:text-slate-400 font-medium leading-none">
-                  Gestão & Literacia Financeira
+                  {isAdmin ? 'Painel Executivo de Administração' : 'Gestão & Literacia Financeira'}
                 </span>
               </div>
             </button>
@@ -88,9 +92,9 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenN
                   <button
                     key={item.id}
                     onClick={() => onTabChange(item.id)}
-                    className={`flex items-center gap-1.5 px-3 py-2 rounded-lg transition-colors whitespace-nowrap shrink-0 cursor-pointer text-xs ${
+                    className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl transition-colors whitespace-nowrap shrink-0 cursor-pointer text-xs ${
                       active
-                        ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 font-semibold'
+                        ? 'text-emerald-700 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/60 font-bold'
                         : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800'
                     }`}
                   >
@@ -102,7 +106,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenN
             </nav>
           )}
 
-          {/* Zona 3: Acção Principal, Dark Mode & Perfil */}
+          {/* Zona 3: Dark Mode & Perfil */}
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             {/* Botão de Dark Mode Toggle */}
             <button
@@ -120,16 +124,19 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenN
 
             {isAuthenticated ? (
               <>
-                <button
-                  onClick={onOpenNewTransaction}
-                  className="flex items-center gap-1.5 px-3 py-2 text-xs sm:text-sm font-semibold text-white bg-emerald-600 rounded-lg hover:bg-emerald-700 active:scale-95 transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
-                >
-                  <Plus className="w-4 h-4" />
-                  <span className="hidden sm:inline">Nova Transacção</span>
-                  <span className="sm:hidden">Nova</span>
-                </button>
+                {/* Botão de Nova Transacção Apenas para Utilizadores Finais (Não Admin) */}
+                {!isAdmin && (
+                  <button
+                    onClick={onOpenNewTransaction}
+                    className="flex items-center gap-1.5 px-3.5 py-2 text-xs sm:text-sm font-semibold text-white bg-emerald-600 rounded-xl hover:bg-emerald-700 active:scale-95 transition-all shadow-sm whitespace-nowrap shrink-0 cursor-pointer"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span className="hidden sm:inline">Nova Transacção</span>
+                    <span className="sm:hidden">Nova</span>
+                  </button>
+                )}
 
-                {/* Dropdown de Utilizador & Alternância de Contas */}
+                {/* Dropdown de Utilizador */}
                 <div className="relative">
                   <button
                     onClick={() => setUserDropdownOpen(!userDropdownOpen)}
@@ -147,44 +154,51 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onTabChange, onOpenN
                         <p className="text-sm font-semibold text-slate-900 dark:text-white">{user?.name}</p>
                         <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{user?.email}</p>
                         <div className="mt-1 flex items-center gap-1 text-[11px] text-emerald-700 dark:text-emerald-400 font-medium">
-                          {user?.profileType === 'student' ? (
+                          {isAdmin ? (
+                            <><ShieldCheck className="w-3.5 h-3.5 text-indigo-600" /> Administrador do Sistema</>
+                          ) : user?.profileType === 'student' ? (
                             <><GraduationCap className="w-3.5 h-3.5" /> Perfil Estudante</>
                           ) : (
                             <><Briefcase className="w-3.5 h-3.5" /> Perfil Trabalhador</>
                           )}
-                          {user?.role === 'admin' && ' · Admin'}
                         </div>
                       </div>
 
                       <div className="border-t border-slate-100 dark:border-slate-800 pt-1">
-                        <button
-                          onClick={() => { onTabChange('reports'); setUserDropdownOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
-                        >
-                          <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
-                          <span>Relatórios em PDF & Gráficos</span>
-                        </button>
-                        <button
-                          onClick={() => { onTabChange('accounts'); setUserDropdownOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
-                        >
-                          <Wallet className="w-4 h-4 text-slate-400" />
-                          <span>As Minhas Contas</span>
-                        </button>
-                        <button
-                          onClick={() => { onTabChange('profile'); setUserDropdownOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
-                        >
-                          <UserIcon className="w-4 h-4 text-slate-400" />
-                          <span>O Meu Perfil</span>
-                        </button>
-                        <button
-                          onClick={() => { resetDemoData(); setUserDropdownOpen(false); }}
-                          className="w-full text-left px-4 py-2 text-xs text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/40 flex items-center gap-2 cursor-pointer"
-                        >
-                          <RotateCcw className="w-4 h-4 text-amber-500" />
-                          <span>Restaurar Dados Iniciais</span>
-                        </button>
+                        {isAdmin ? (
+                          <button
+                            onClick={() => { onTabChange('admin'); setUserDropdownOpen(false); }}
+                            className="w-full text-left px-4 py-2 text-xs text-indigo-700 dark:text-indigo-300 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 flex items-center gap-2 cursor-pointer font-bold"
+                          >
+                            <ShieldCheck className="w-4 h-4 text-indigo-600" />
+                            <span>Painel de Análise de Dados</span>
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => { onTabChange('reports'); setUserDropdownOpen(false); }}
+                              className="w-full text-left px-4 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                            >
+                              <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                              <span>Relatórios em PDF & Gráficos</span>
+                            </button>
+                            <button
+                              onClick={() => { onTabChange('accounts'); setUserDropdownOpen(false); }}
+                              className="w-full text-left px-4 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                            >
+                              <Wallet className="w-4 h-4 text-slate-400" />
+                              <span>As Minhas Contas</span>
+                            </button>
+                            <button
+                              onClick={() => { onTabChange('profile'); setUserDropdownOpen(false); }}
+                              className="w-full text-left px-4 py-2 text-xs text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2 cursor-pointer"
+                            >
+                              <UserIcon className="w-4 h-4 text-slate-400" />
+                              <span>O Meu Perfil</span>
+                            </button>
+                          </>
+                        )}
+
                         <button
                           onClick={() => { logout(); setUserDropdownOpen(false); }}
                           className="w-full text-left px-4 py-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 flex items-center gap-2 cursor-pointer"

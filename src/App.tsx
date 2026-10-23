@@ -20,7 +20,7 @@ import { TransactionModal } from './components/transactions/TransactionModal';
 import { Transaction } from './types/finance';
 
 function MainApp() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   const [currentTab, setCurrentTab] = useState<string>('landing');
   const [isTxModalOpen, setIsTxModalOpen] = useState(false);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -40,10 +40,13 @@ function MainApp() {
     setEditingTx(null);
   };
 
-  // Se não estiver autenticado e tentar aceder a abas privadas, encaminha para a landing page
-  const activeView = !isAuthenticated && !['landing', 'login', 'register'].includes(currentTab)
-    ? 'landing'
-    : currentTab;
+  // Lógica de visualização activa:
+  // - Não autenticado: mostra 'landing', 'login' ou 'register'
+  // - Administrador: foca exclusivamente no Painel de Administração ('admin' ou 'profile')
+  // - Utilizador Regular: acede ao Dashboard e ferramentas de gestão pessoal
+  const activeView = !isAuthenticated
+    ? (['login', 'register'].includes(currentTab) ? currentTab : 'landing')
+    : (isAdmin && !['admin', 'profile'].includes(currentTab) ? 'admin' : currentTab);
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors">
@@ -58,14 +61,14 @@ function MainApp() {
       <main className="flex-1">
         {activeView === 'landing' && (
           <LandingPage
-            onGetStarted={() => setCurrentTab(isAuthenticated ? 'dashboard' : 'register')}
+            onGetStarted={() => setCurrentTab(isAuthenticated ? (isAdmin ? 'admin' : 'dashboard') : 'register')}
             onGoToLogin={() => setCurrentTab('login')}
           />
         )}
 
         {activeView === 'login' && (
           <LoginPage
-            onSuccess={() => setCurrentTab('dashboard')}
+            onSuccess={() => setCurrentTab(isAdmin ? 'admin' : 'dashboard')}
             onGoToRegister={() => setCurrentTab('register')}
           />
         )}
