@@ -1,0 +1,6 @@
+{
+  "name": "Chrímata",
+  "description": "App de gestão financeira pessoal e educação financeira voltada a estudantes e trabalhadores.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
