@@ -64,24 +64,52 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Tenta primeiro via Firebase Auth se fornecida palavra-passe
     if (password && password.length >= 6) {
       try {
-        const cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
-        let profile = await firestoreService.getUserProfile(cred.user.uid);
-        if (!profile) {
-          profile = {
-            id: cred.user.uid,
-            name: cred.user.displayName || cleanEmail.split('@')[0],
-            email: cleanEmail,
-            role: (cleanEmail === 'dossantosbraulio20@gmail.com' || cleanEmail === 'admin@chrimata.ao') ? 'admin' : 'user',
-            profileType: 'worker',
-            currency: 'AOA',
-            institutionOrCompany: 'Empresa / Sector de Actividade',
-            createdAt: new Date().toISOString(),
-          };
-          await firestoreService.saveUserProfile(profile);
+        let cred;
+        try {
+          cred = await signInWithEmailAndPassword(auth, cleanEmail, password);
+        } catch (signInErr: any) {
+          // Se o utilizador não existir ou for o admin default, tenta criar a conta no Firebase Auth
+          if (
+            signInErr.code === 'auth/user-not-found' || 
+            signInErr.code === 'auth/invalid-credential' ||
+            cleanEmail === 'dossantosbraulio20@gmail.com'
+          ) {
+            try {
+              cred = await createUserWithEmailAndPassword(auth, cleanEmail, password);
+            } catch (createErr) {
+              // Se já existir com outra credencial, repassa o erro inicial
+              throw signInErr;
+            }
+          } else {
+            throw signInErr;
+          }
         }
-        setUser(profile);
-        storageService.setCurrentUser(profile);
-        return { success: true };
+
+        if (cred?.user) {
+          let profile = await firestoreService.getUserProfile(cred.user.uid);
+          const isAdminEmail = cleanEmail === 'dossantosbraulio20@gmail.com';
+          
+          if (!profile) {
+            profile = {
+              id: cred.user.uid,
+              name: cred.user.displayName || cleanEmail.split('@')[0],
+              email: cleanEmail,
+              role: isAdminEmail ? 'admin' : 'user',
+              profileType: 'worker',
+              currency: 'AOA',
+              institutionOrCompany: 'Empresa / Sector de Actividade',
+              createdAt: new Date().toISOString(),
+            };
+            await firestoreService.saveUserProfile(profile);
+          } else if (isAdminEmail && profile.role !== 'admin') {
+            profile.role = 'admin';
+            await firestoreService.saveUserProfile(profile);
+          }
+
+          setUser(profile);
+          storageService.setCurrentUser(profile);
+          return { success: true };
+        }
       } catch (fbErr: any) {
         console.warn('Firebase Auth Login fallback:', fbErr.message);
       }

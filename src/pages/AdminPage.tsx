@@ -26,7 +26,9 @@ import {
   X,
   CreditCard,
   Building2,
-  Calendar
+  Calendar,
+  UserPlus,
+  Edit3
 } from 'lucide-react';
 
 export const AdminPage: React.FC = () => {
@@ -52,11 +54,28 @@ export const AdminPage: React.FC = () => {
   const [newCatColor, setNewCatColor] = useState('#16A34A');
   const [catSuccess, setCatSuccess] = useState(false);
 
-  // Modais de Inspeção e Confirmação
+  // Modais de Inspeção, Criação, Edição e Confirmação
   const [userToInspect, setUserToInspect] = useState<User | null>(null);
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
   const [txToDelete, setTxToDelete] = useState<Transaction | null>(null);
+  const [accountToDelete, setAccountToDelete] = useState<Account | null>(null);
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
+
+  // Modal de Criar Utilizador
+  const [isCreateUserModalOpen, setIsCreateUserModalOpen] = useState(false);
+  const [newUserName, setNewUserName] = useState('');
+  const [newUserEmail, setNewUserEmail] = useState('');
+  const [newUserRole, setNewUserRole] = useState<'admin' | 'user'>('user');
+  const [newUserProfileType, setNewUserProfileType] = useState<'worker' | 'student'>('worker');
+  const [newUserEntity, setNewUserEntity] = useState('');
+
+  // Modal de Editar Utilizador
+  const [userToEdit, setUserToEdit] = useState<User | null>(null);
+  const [editUserName, setEditUserName] = useState('');
+  const [editUserEmail, setEditUserEmail] = useState('');
+  const [editUserRole, setEditUserRole] = useState<'admin' | 'user'>('user');
+  const [editUserProfileType, setEditUserProfileType] = useState<'worker' | 'student'>('worker');
+  const [editUserEntity, setEditUserEntity] = useState('');
 
   const loadGlobalAdminData = async () => {
     setLoadingData(true);
@@ -150,6 +169,76 @@ export const AdminPage: React.FC = () => {
     await firestoreService.deleteTransaction(txToDelete);
     setNoticeMessage(`Transacção "${txToDelete.title}" removida pelo Administrador.`);
     setTxToDelete(null);
+    setTimeout(() => setNoticeMessage(null), 4000);
+    loadGlobalAdminData();
+  };
+
+  const handleCreateUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUserName.trim() || !newUserEmail.trim()) return;
+
+    const newUser: User = {
+      id: 'usr_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6),
+      name: newUserName.trim(),
+      email: newUserEmail.trim().toLowerCase(),
+      role: newUserRole,
+      profileType: newUserProfileType,
+      currency: 'AOA',
+      institutionOrCompany: newUserEntity.trim() || (newUserProfileType === 'student' ? 'Universidade / Instituto' : 'Empresa / Sector de Actividade'),
+      createdAt: new Date().toISOString(),
+    };
+
+    await firestoreService.saveUserProfile(newUser);
+    storageService.saveUser(newUser);
+
+    setNoticeMessage(`Novo utilizador "${newUser.name}" criado com sucesso.`);
+    setIsCreateUserModalOpen(false);
+    setNewUserName('');
+    setNewUserEmail('');
+    setNewUserEntity('');
+    setTimeout(() => setNoticeMessage(null), 4000);
+    loadGlobalAdminData();
+  };
+
+  const handleOpenEditUser = (u: User) => {
+    setUserToEdit(u);
+    setEditUserName(u.name);
+    setEditUserEmail(u.email);
+    setEditUserRole(u.role);
+    setEditUserProfileType(u.profileType);
+    setEditUserEntity(u.institutionOrCompany || '');
+  };
+
+  const handleEditUserSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userToEdit || !editUserName.trim() || !editUserEmail.trim()) return;
+
+    const updatedUser: User = {
+      ...userToEdit,
+      name: editUserName.trim(),
+      email: editUserEmail.trim().toLowerCase(),
+      role: editUserRole,
+      profileType: editUserProfileType,
+      institutionOrCompany: editUserEntity.trim(),
+    };
+
+    await firestoreService.saveUserProfile(updatedUser);
+    storageService.saveUser(updatedUser);
+
+    setNoticeMessage(`Dados do utilizador "${updatedUser.name}" actualizados.`);
+    setUserToEdit(null);
+    if (userToInspect?.id === updatedUser.id) {
+      setUserToInspect(updatedUser);
+    }
+    setTimeout(() => setNoticeMessage(null), 4000);
+    loadGlobalAdminData();
+  };
+
+  const handleDeleteAccountConfirm = async () => {
+    if (!accountToDelete) return;
+    await firestoreService.deleteAccount(accountToDelete.id);
+    setNoticeMessage(`Conta "${accountToDelete.name}" removida com sucesso.`);
+    setAccountToDelete(null);
     setTimeout(() => setNoticeMessage(null), 4000);
     loadGlobalAdminData();
   };
@@ -389,15 +478,25 @@ export const AdminPage: React.FC = () => {
               <p className="text-xs text-slate-500 dark:text-slate-400">Clique num utilizador para ver a sua ficha financeira completa, contas e transacções</p>
             </div>
 
-            <div className="relative w-full sm:w-72">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-              <input
-                type="text"
-                value={userSearch}
-                onChange={(e) => setUserSearch(e.target.value)}
-                placeholder="Pesquisar por nome ou e-mail..."
-                className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
-              />
+            <div className="flex items-center gap-2.5 w-full sm:w-auto">
+              <div className="relative w-full sm:w-64">
+                <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                <input
+                  type="text"
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  placeholder="Pesquisar por nome ou e-mail..."
+                  className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              <button
+                onClick={() => setIsCreateUserModalOpen(true)}
+                className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-all cursor-pointer whitespace-nowrap"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>Criar Utilizador</span>
+              </button>
             </div>
           </div>
 
@@ -450,7 +549,16 @@ export const AdminPage: React.FC = () => {
                           className="px-3 py-1.5 text-xs font-bold text-emerald-800 dark:text-emerald-300 bg-emerald-50 dark:bg-emerald-950/80 hover:bg-emerald-100 rounded-xl transition-colors cursor-pointer border border-emerald-200/80 flex items-center gap-1.5"
                         >
                           <Eye className="w-3.5 h-3.5 text-emerald-600" />
-                          <span>Ver Ficha Completa</span>
+                          <span>Ficha</span>
+                        </button>
+
+                        <button
+                          onClick={() => handleOpenEditUser(u)}
+                          className="px-2.5 py-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 rounded-xl transition-colors cursor-pointer flex items-center gap-1"
+                          title="Editar Utilizador"
+                        >
+                          <Edit3 className="w-3.5 h-3.5" />
+                          <span>Editar</span>
                         </button>
 
                         <button
@@ -487,6 +595,7 @@ export const AdminPage: React.FC = () => {
                   <th className="px-6 py-3">Saldo Actual</th>
                   <th className="px-6 py-3">Estado de Poupança</th>
                   <th className="px-6 py-3">Titular (ID)</th>
+                  <th className="px-6 py-3 text-right">Acções</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
@@ -511,6 +620,15 @@ export const AdminPage: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-3.5 font-mono text-slate-400">{a.userId}</td>
+                    <td className="px-6 py-3.5 text-right whitespace-nowrap">
+                      <button
+                        onClick={() => setAccountToDelete(a)}
+                        className="p-1.5 text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                        title="Eliminar Conta"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -886,6 +1004,250 @@ export const AdminPage: React.FC = () => {
                 Eliminar Transacção
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação para Eliminar Conta */}
+      {accountToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 max-w-md w-full p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl space-y-4">
+            <div className="flex items-center gap-3 text-rose-600">
+              <AlertTriangle className="w-6 h-6 shrink-0" />
+              <h3 className="text-base font-bold text-slate-900 dark:text-white">Confirmar Eliminação de Conta</h3>
+            </div>
+            <p className="text-xs text-slate-600 dark:text-slate-300">
+              Tem a certeza de que pretende eliminar a conta <strong className="text-slate-900 dark:text-white">{accountToDelete.name}</strong> com saldo de {formatKz(accountToDelete.balance)}?
+            </p>
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                onClick={() => setAccountToDelete(null)}
+                className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDeleteAccountConfirm}
+                className="px-4 py-2 text-xs font-bold text-white bg-rose-600 rounded-xl hover:bg-rose-700 transition-colors cursor-pointer"
+              >
+                Eliminar Conta
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Criação de Utilizador */}
+      {isCreateUserModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 max-w-lg w-full p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <UserPlus className="w-5 h-5 text-emerald-600" />
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Criar Novo Utilizador no Sistema</h3>
+              </div>
+              <button
+                onClick={() => setIsCreateUserModalOpen(false)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleCreateUserSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Nome Completo *
+                </label>
+                <input
+                  type="text"
+                  value={newUserName}
+                  onChange={(e) => setNewUserName(e.target.value)}
+                  placeholder="Ex.: Bártolo Agostinho"
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Endereço de E-mail *
+                </label>
+                <input
+                  type="email"
+                  value={newUserEmail}
+                  onChange={(e) => setNewUserEmail(e.target.value)}
+                  placeholder="exemplo@dominio.ao"
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Papel (Acesso) *
+                  </label>
+                  <select
+                    value={newUserRole}
+                    onChange={(e) => setNewUserRole(e.target.value as 'admin' | 'user')}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  >
+                    <option value="user">Utilizador Normal</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Perfil Financeiro *
+                  </label>
+                  <select
+                    value={newUserProfileType}
+                    onChange={(e) => setNewUserProfileType(e.target.value as 'worker' | 'student')}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  >
+                    <option value="worker">Trabalhador / Profissional</option>
+                    <option value="student">Estudante Universitário</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Empresa ou Instituição
+                </label>
+                <input
+                  type="text"
+                  value={newUserEntity}
+                  onChange={(e) => setNewUserEntity(e.target.value)}
+                  placeholder="Ex.: Sonangol / UAN / Banco BAI"
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsCreateUserModalOpen(false)}
+                  className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  Registar Utilizador
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Edição de Utilizador */}
+      {userToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in">
+          <div className="bg-white dark:bg-slate-900 max-w-lg w-full p-6 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+              <div className="flex items-center gap-2">
+                <Edit3 className="w-5 h-5 text-indigo-600" />
+                <h3 className="text-base font-bold text-slate-900 dark:text-white">Editar Dados do Utilizador</h3>
+              </div>
+              <button
+                onClick={() => setUserToEdit(null)}
+                className="p-1.5 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg transition-colors cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditUserSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Nome Completo *
+                </label>
+                <input
+                  type="text"
+                  value={editUserName}
+                  onChange={(e) => setEditUserName(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Endereço de E-mail *
+                </label>
+                <input
+                  type="email"
+                  value={editUserEmail}
+                  onChange={(e) => setEditUserEmail(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  required
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Papel (Acesso) *
+                  </label>
+                  <select
+                    value={editUserRole}
+                    onChange={(e) => setEditUserRole(e.target.value as 'admin' | 'user')}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  >
+                    <option value="user">Utilizador Normal</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                    Perfil Financeiro *
+                  </label>
+                  <select
+                    value={editUserProfileType}
+                    onChange={(e) => setEditUserProfileType(e.target.value as 'worker' | 'student')}
+                    className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                  >
+                    <option value="worker">Trabalhador / Profissional</option>
+                    <option value="student">Estudante Universitário</option>
+                  </select>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                  Empresa ou Instituição
+                </label>
+                <input
+                  type="text"
+                  value={editUserEntity}
+                  onChange={(e) => setEditUserEntity(e.target.value)}
+                  className="w-full px-3.5 py-2.5 text-xs bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white rounded-xl focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                />
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100 dark:border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setUserToEdit(null)}
+                  className="px-4 py-2 text-xs font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 rounded-xl hover:bg-slate-200 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 rounded-xl shadow-xs transition-colors cursor-pointer"
+                >
+                  Guardar Alterações
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

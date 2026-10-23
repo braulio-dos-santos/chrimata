@@ -95,13 +95,47 @@ export const firestoreService = {
   },
 
   async deleteUser(userId: string): Promise<void> {
-    if (!auth.currentUser) return;
     const path = `users/${userId}`;
     try {
-      await deleteDoc(doc(db, 'users', userId));
+      if (auth.currentUser) {
+        // Eliminar perfil do utilizador
+        await deleteDoc(doc(db, 'users', userId));
+
+        // Eliminar contas associadas ao utilizador
+        const qAcc = query(collection(db, 'accounts'), where('userId', '==', userId));
+        const snapAcc = await getDocs(qAcc);
+        for (const d of snapAcc.docs) {
+          await deleteDoc(d.ref);
+        }
+
+        // Eliminar transacções associadas ao utilizador
+        const qTx = query(collection(db, 'transactions'), where('userId', '==', userId));
+        const snapTx = await getDocs(qTx);
+        for (const d of snapTx.docs) {
+          await deleteDoc(d.ref);
+        }
+
+        // Eliminar metas/objectivos associados
+        const qGoal = query(collection(db, 'goals'), where('userId', '==', userId));
+        const snapGoal = await getDocs(qGoal);
+        for (const d of snapGoal.docs) {
+          await deleteDoc(d.ref);
+        }
+
+        // Eliminar orçamentos associados
+        const qBud = query(collection(db, 'budgets'), where('userId', '==', userId));
+        const snapBud = await getDocs(qBud);
+        for (const d of snapBud.docs) {
+          await deleteDoc(d.ref);
+        }
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, path);
     }
+
+    // Limpar do armazenamento local também
+    const users = storageService.getUsers().filter(u => u.id !== userId);
+    localStorage.setItem('chrimata_users_v2', JSON.stringify(users));
   },
 
   async getAllAccountsGlobal(): Promise<Account[]> {
