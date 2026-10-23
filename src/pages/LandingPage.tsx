@@ -1,10 +1,7 @@
 import React from 'react';
-import { useAuth } from '../contexts/AuthContext';
 import { 
   ArrowRight, 
   CheckCircle2, 
-  GraduationCap, 
-  Briefcase, 
   ShieldCheck, 
   PieChart, 
   BookOpen, 
@@ -22,12 +19,6 @@ interface LandingPageProps {
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLogin }) => {
-  const { switchDemoUser } = useAuth();
-
-  const handleDemoAccess = (userId: string) => {
-    switchDemoUser(userId);
-    onGetStarted();
-  };
 
   return (
     <div className="bg-slate-50 min-h-screen">
@@ -57,45 +48,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({ onGetStarted, onGoToLo
                   onClick={onGetStarted}
                   className="px-6 py-3.5 text-sm font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-md hover:shadow-lg transition-all flex items-center gap-2 cursor-pointer active:scale-98"
                 >
-                  <span>Abrir o Dashboard</span>
+                  <span>Começar Agora</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
                 <button
                   onClick={onGoToLogin}
-                  className="px-6 py-3.5 text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition-all cursor-pointer"
+                  className="px-6 py-3.5 text-sm font-semibold text-slate-700 dark:text-slate-200 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 rounded-xl transition-all cursor-pointer"
                 >
                   Já tenho conta
                 </button>
-              </div>
-
-              {/* Acesso Instantâneo com Perfis de Demonstração */}
-              <div className="pt-6 border-t border-slate-100">
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">
-                  Explorar Instantaneamente com Contas Prontas:
-                </p>
-                <div className="flex flex-wrap gap-2.5">
-                  <button
-                    onClick={() => handleDemoAccess('user_student')}
-                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:border-emerald-500 hover:text-emerald-700 hover:bg-emerald-50/40 transition-all cursor-pointer"
-                  >
-                    <GraduationCap className="w-4 h-4 text-emerald-600" />
-                    <span>Estudante (Ana Silva)</span>
-                  </button>
-                  <button
-                    onClick={() => handleDemoAccess('user_worker')}
-                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:border-teal-500 hover:text-teal-700 hover:bg-teal-50/40 transition-all cursor-pointer"
-                  >
-                    <Briefcase className="w-4 h-4 text-teal-600" />
-                    <span>Trabalhador (João Manuel)</span>
-                  </button>
-                  <button
-                    onClick={() => handleDemoAccess('user_admin')}
-                    className="flex items-center gap-2 px-3.5 py-2 text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg hover:border-indigo-500 hover:text-indigo-700 hover:bg-indigo-50/40 transition-all cursor-pointer"
-                  >
-                    <ShieldCheck className="w-4 h-4 text-indigo-600" />
-                    <span>Administrador</span>
-                  </button>
-                </div>
               </div>
             </div>
 

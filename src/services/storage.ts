@@ -244,16 +244,14 @@ export function initStorage(): void {
   }
 
   const currentUserRaw = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-  if (!currentUserRaw) {
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(DEMO_USERS[0]));
-  } else {
+  if (currentUserRaw) {
     try {
       const cur: User = JSON.parse(currentUserRaw);
       if (cur.id === 'user_student' || cur.id === 'user_worker') {
-        localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(DEMO_USERS[0]));
+        localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
       }
     } catch {
-      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(DEMO_USERS[0]));
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     }
   }
 
@@ -293,14 +291,18 @@ export const storageService = {
     initStorage();
     try {
       const data = localStorage.getItem(STORAGE_KEYS.CURRENT_USER);
-      return data ? JSON.parse(data) : DEMO_USERS[0];
+      return data ? JSON.parse(data) : null;
     } catch {
-      return DEMO_USERS[0];
+      return null;
     }
   },
 
-  setCurrentUser(user: User): void {
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+  setCurrentUser(user: User | null): void {
+    if (user) {
+      localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(user));
+    } else {
+      localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
+    }
   },
 
   saveUser(user: User): void {
@@ -698,7 +700,7 @@ export const storageService = {
   // Redefinir para dados de fábrica
   resetToDemoData(): void {
     localStorage.setItem(STORAGE_KEYS.USERS, JSON.stringify(DEMO_USERS));
-    localStorage.setItem(STORAGE_KEYS.CURRENT_USER, JSON.stringify(DEMO_USERS[0]));
+    localStorage.removeItem(STORAGE_KEYS.CURRENT_USER);
     localStorage.setItem(STORAGE_KEYS.CATEGORIES, JSON.stringify(DEFAULT_CATEGORIES));
     localStorage.setItem(STORAGE_KEYS.ACCOUNTS, JSON.stringify(createDemoAccounts()));
     localStorage.setItem(STORAGE_KEYS.TRANSACTIONS, JSON.stringify(createDemoTransactions()));

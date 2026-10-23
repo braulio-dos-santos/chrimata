@@ -58,7 +58,7 @@ function MainApp() {
       <main className="flex-1">
         {activeView === 'landing' && (
           <LandingPage
-            onGetStarted={() => setCurrentTab('dashboard')}
+            onGetStarted={() => setCurrentTab(isAuthenticated ? 'dashboard' : 'register')}
             onGoToLogin={() => setCurrentTab('login')}
           />
         )}
